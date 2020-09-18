@@ -1,0 +1,54 @@
+spring boot 集成 quartz
+    quartz官网:http://www.quartz-scheduler.org/
+    1.引入spring-boot-starter-quartz
+      <!--spring boot集成quartz-->
+      <dependency>
+      	<groupId>org.springframework.boot</groupId>
+      	<artifactId>spring-boot-starter-quartz</artifactId>
+      </dependency>
+    2.配置Quartz的持久化方式(这里只介绍主要属性)
+      Quartz保存工作数据默认是使用内存的方式，启动时可以在控制台日志中看到JobStore是RAMJobStore使用内存的模式，然后是not clustered表示不是集群中的节点
+      启动日志:
+              Scheduler class: 'org.quartz.core.QuartzScheduler' - running locally.
+              NOT STARTED.
+              Currently in standby mode.
+              Number of jobs executed: 0
+              Using thread pool 'org.quartz.simpl.SimpleThreadPool' - with 10 threads.
+              Using job-store 'org.springframework.scheduling.quartz.LocalDataSourceJobStore' - which supports persistence. not clustered.
+
+
+      配置数据库方式及开启集群:
+          spring.quartz.job-store-type: JDBC # 使用数据库做为存为方式
+          spring.quartz.jdbc.initialize-schema: always # 数据库加载方式,三方方式,always:总是初始化表结构always,embedded(只初始化内存数据库),never:不初始化内存
+          spring.quartz.properties.org.quartz.jobStore.isClustered: true # 开启集群模式
+
+          持久化则需要配置JDBCJobStore方式，首先到官网下载Quartz压缩包，解压后在docs\dbTables目录下(不用版本目录不一致,找不到可以搜索一下)看到很多对应不同数据库的SQL脚本，
+      我这里选择mysql数据库且使用innodb引擎对应是tables_mysql_innodb.sql，打开可以看到需要添加11个QRTZ_开头的表,这里不做介绍
+
+
+      启动日志:
+        Scheduler class: 'org.quartz.core.QuartzScheduler' - running locally.
+        NOT STARTED.
+        Currently in standby mode.
+        Number of jobs executed: 0
+        Using thread pool 'org.quartz.simpl.SimpleThreadPool' - with 10 threads.
+        Using job-store 'org.springframework.scheduling.quartz.LocalDataSourceJobStore' - which supports persistence. and is clustered.
+
+    3.业务代码编写
+        编写job业务类:TestJob
+        添加配置类:QuartzConfig注册bean:JobDetail和Trigger(一个job对应一对配置)
+
+
+Spring boot集成Quartz实现定时任务
+    Quartz的简单介绍
+        核心概念：调度器、任务和触发器
+    Job:是一个接口，有一个方法void execute()，可以通过实现该接口来定义需要执行的任务
+    JobDetail:Quartz
+        每次执行job时，都重新创建一个Job实例，会接收一个Job实现类，以便运行的时候通过newInstance()的反射调用机制去实例化Job.
+        JobDetail是用来描述Job实现类以及相关静态信息，比如任务在scheduler中的组名等信息
+    Trigger:描述触发Job执行的时间触发规则实现类SimpleTrigger和CronTrigger可以通过crom表达式定义出各种复杂的调度方案
+    Calendar:是一些日历特定时间的集合。一个Trigger可以和多个 calendar关联,比如每周一早上10:00执行任务，法定假日不执行，
+        则可以通过calendar进行定点排除
+    Scheduler:代表一个 Quartz的独立运行容器。Trigger和JobDetail可以注册到Scheduler中。
+        Scheduler可以将Trigger绑定到某一JobDetail上，这样当Trigger被触发时，对应的Job就会执行。一个Job可以对应多个Trigger，
+        但一个Trigger只能对应一个Job.
